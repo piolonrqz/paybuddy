@@ -1,15 +1,12 @@
 package com.splitwise.Service;
+
+import com.splitwise.DTO.ExpenseDTO;
+import com.splitwise.DTO.ExpenseShareDTO;
+import com.splitwise.Entities.*;
+import com.splitwise.Repository.*;
 import org.springframework.stereotype.Service;
 
-import com.splitwise.Entities.Expense;
-import com.splitwise.Entities.ExpenseShare;
-import com.splitwise.Entities.GroupMember;
-import com.splitwise.Repository.ExpenseRepository;
-import com.splitwise.Repository.ExpenseShareRepository;
-import com.splitwise.Repository.GroupMemberRepository;
-import com.splitwise.Repository.GroupRepository;
-import com.splitwise.Repository.UserRepository;
-import com.splitwise.Entities.*;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -20,7 +17,9 @@ public class ExpenseService {
     private final UserRepository userRepository;
     private final GroupMemberRepository groupMemberRepository;
 
-    public ExpenseService(ExpenseRepository expenseRepository, ExpenseShareRepository expenseShareRepository, GroupRepository groupRepository, UserRepository userRepository, GroupMemberRepository groupMemberRepository){
+    public ExpenseService(ExpenseRepository expenseRepository, ExpenseShareRepository expenseShareRepository,
+                          GroupRepository groupRepository, UserRepository userRepository,
+                          GroupMemberRepository groupMemberRepository) {
         this.expenseRepository = expenseRepository;
         this.expenseShareRepository = expenseShareRepository;
         this.groupRepository = groupRepository;
@@ -28,15 +27,13 @@ public class ExpenseService {
         this.groupMemberRepository = groupMemberRepository;
     }
 
-    //add expense and auto-split equally among group members
-    public Expense addExpense(Long groupId, Long paidByUserId, String description, Double amount) {
+    //Add expense and split equally
+    public ExpenseDTO addExpense(Long groupId, Long paidByUserId, String description, Double amount) {
         Group group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new RuntimeException("Group not found"));
-
         User paidBy = userRepository.findById(paidByUserId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Save expense
         Expense expense = new Expense();
         expense.setGroup(group);
         expense.setPaidBy(paidBy);
@@ -45,14 +42,9 @@ public class ExpenseService {
 
         Expense savedExpense = expenseRepository.save(expense);
 
-        // Get members of group
         List<GroupMember> members = groupMemberRepository.findByGroupId(groupId);
+        if (members.isEmpty()) throw new RuntimeException("No members in group");
 
-        if (members.isEmpty()) {
-            throw new RuntimeException("No members in group");
-        }
-
-        // Calculate equal share
         double share = amount / members.size();
 
         for (GroupMember member : members) {
@@ -63,16 +55,31 @@ public class ExpenseService {
             expenseShareRepository.save(shareEntity);
         }
 
-        return savedExpense;
+        return new ExpenseDTO(savedExpense.getId(), description, amount, paidBy.getEmail(), groupId);
     }
 
     //List expenses for a group
-    public List<Expense> getExpensesByGroup(Long groupId) {
-        return expenseRepository.findByGroupById(groupId);
+    public List<ExpenseDTO> getExpensesByGroup(Long groupId) {
+        List<Expense> expenses = expenseRepository.findByGroupById(groupId);
+        List<ExpenseDTO> result = new ArrayList<>();
+        for (Expense e : expenses) {
+            result.add(new ExpenseDTO(e.getId(), e.getDescription(), e.getAmount(),
+                    e.getPaidBy().getEmail(), e.getGroup().getId()));
+        }
+        return result;
     }
 
     //Get all shares of a user
-    public List<ExpenseShare> getSharesByUser(Long userId) {
-        return expenseShareRepository.findByUserId(userId);
+    public List<ExpenseShareDTO> getSharesByUser(Long userId) {
+        List<ExpenseShare> shares = expenseShareRepository.findByUserId(userId);
+        List<ExpenseShareDTO> result = new ArrayList<>();
+        for (ExpenseShare s : shares) {
+            result.add(new ExpenseShareDTO(
+                    s.getExpense().getId(),
+                    s.getUser().getEmail(),
+                    s.getShareAmount()
+            ));
+        }
+        return result;
     }
 }
