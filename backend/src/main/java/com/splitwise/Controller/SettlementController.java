@@ -1,7 +1,8 @@
 package com.splitwise.Controller;
 
-import com.splitwise.Entities.Settlement;
+import com.splitwise.DTO.SettlementDTO;
 import com.splitwise.Service.SettlementService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,23 +17,31 @@ public class SettlementController {
         this.settlementService = settlementService;
     }
 
-    //Record a new settlement (repayment)
-    @PostMapping("/add")
-    public Settlement addSettlement(@RequestParam Long fromUserId,
-                                    @RequestParam Long toUserId,
-                                    @RequestParam Double amount) {
-        return settlementService.addSettlement(fromUserId, toUserId, amount);
+    // ➕ Add a new settlement
+    @PostMapping
+    public ResponseEntity<SettlementDTO> addSettlement(
+            @RequestParam Long fromUserId,
+            @RequestParam Long toUserId,
+            @RequestParam Double amount) {
+        SettlementDTO settlement = settlementService.addSettlement(fromUserId, toUserId, amount);
+        return ResponseEntity.ok(settlement);
     }
 
-    //Get all settlements made by a user
+    // 📤 Get settlements made by a user
     @GetMapping("/from/{userId}")
-    public List<Settlement> getSettlementsFromUser(@PathVariable Long userId) {
-        return settlementService.getSettlementsByFromUser(userId);
+    public ResponseEntity<List<SettlementDTO>> getSettlementsByFromUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(settlementService.getSettlementsByFromUser(userId));
     }
 
-    // Get all settlements received by a user
+    // 📥 Get settlements received by a user
     @GetMapping("/to/{userId}")
-    public List<Settlement> getSettlementsToUser(@PathVariable Long userId) {
-        return settlementService.getSettlementsByToUser(userId);
+    public ResponseEntity<List<SettlementDTO>> getSettlementsByToUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(settlementService.getSettlementsByToUser(userId));
+    }
+
+    // 📊 Get all settlements related to a user
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<SettlementDTO>> getAllSettlementsByUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(settlementService.getAllSettlementsByUser(userId));
     }
 }
